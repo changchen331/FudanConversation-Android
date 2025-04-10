@@ -1,3 +1,6 @@
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 plugins {
     alias(libs.plugins.android.application)
 }
@@ -27,6 +30,16 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    android.applicationVariants.all {
+        outputs.all {
+            if (this is com.android.build.gradle.internal.api.ApkVariantOutputImpl) {
+                val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
+                val createTime = LocalDateTime.now().format(formatter)
+                this.outputFileName = "复旦问答_$createTime.apk"
+            }
+        }
     }
 }
 
