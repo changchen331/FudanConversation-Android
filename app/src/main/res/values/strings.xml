@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">FudanConversation_Android</string>
+    <string name="app_name">复旦问答</string>
     <string name="name">复旦问答</string>
     <string name="send_description">发送信息</string>
     <string name="input_description">文本输入区域</string>

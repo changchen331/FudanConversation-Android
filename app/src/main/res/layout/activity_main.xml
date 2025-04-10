@@ -58,7 +58,7 @@
 
         <Button
             android:id="@+id/switch_mod"
-            android:layout_width="wrap_content"
+            android:layout_width="10dp"
             android:layout_height="wrap_content"
             android:contentDescription="@string/switch_description"
             android:text="@string/switch_text"
@@ -79,6 +79,8 @@
             android:background="@color/white"
             android:hint="@string/input_hint"
             android:inputType="text"
+            android:paddingStart="15dp"
+            android:paddingEnd="0dp"
             android:textColor="@color/black"
             android:textSize="20sp"
             app:layout_constraintBottom_toBottomOf="parent"
