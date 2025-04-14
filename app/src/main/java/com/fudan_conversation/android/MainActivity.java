@@ -3,6 +3,7 @@ package com.fudan_conversation.android;
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -40,7 +41,7 @@ import okhttp3.ResponseBody;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
-    private final OkHttpClient client = new OkHttpClient.Builder().connectTimeout(60, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS).writeTimeout(60, TimeUnit.SECONDS).build();
+    private final OkHttpClient client = new OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS).build();
 
     private RecyclerView recyclerView; // 对话框滚动视图
     private DialogueInfoAdapter dialogueInfoAdapter; // 对话框布局适配器
@@ -55,6 +56,16 @@ public class MainActivity extends AppCompatActivity {
 
         // 初始化
         init();
+
+        Handler handler = new Handler();
+        handler.postDelayed(() -> send("1"), 1000);
+        handler.postDelayed(() -> receive("2\n2"), 2000);
+        handler.postDelayed(() -> send("3\n3\n3"), 3000);
+        handler.postDelayed(() -> receive("4\n4\n4\n4"), 4000);
+        handler.postDelayed(() -> send("5\n5\n5\n5\n5"), 5000);
+        handler.postDelayed(() -> receive("6\n6\n6\n6\n6\n6"), 6000);
+        handler.postDelayed(() -> send("7\n7\n7\n7\n7\n7\n7"), 7000);
+        handler.postDelayed(() -> receive("8\n8\n8\n8\n8\n8\n8\n8"), 8000);
 
         // 捕捉 UI
         keyboard_edit = findViewById(R.id.input); // 键盘输入框
@@ -81,9 +92,9 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.dialog);
         recyclerView.setLayoutManager(linearLayoutManager); // 将 linearLayoutManager 设置为 recyclerView 的布局管理器
         // 设置在软键盘弹出之后不会遮挡 RecyclerView 的内容
-        recyclerView.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> recyclerView.postDelayed(() -> recyclerView.scrollToPosition(dialogueInfoAdapter.getItemCount() - 1), 100));
+//        recyclerView.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> recyclerView.postDelayed(() -> recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1), 100));
         // 创建 RecyclerViewAdapter 实例
-        dialogueInfoAdapter = new DialogueInfoAdapter();
+        dialogueInfoAdapter = new DialogueInfoAdapter(recyclerView);
         recyclerView.setAdapter(dialogueInfoAdapter);  // 将 recyclerViewAdapter 设置为 recyclerView 的适配器
 
         receive("复旦问答在线，博学笃志为您解答！");
@@ -120,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
 
         // 发送消息
         dialogueInfoAdapter.addMessage(new Message(content, Message.TYPE_SENT)); // 将新消息添加到消息列表
-        recyclerView.scrollToPosition(dialogueInfoAdapter.getItemCount() - 1);// 滚动到 RecyclerView 的最底部，显示最后一条消息
+        recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);// 滚动到 RecyclerView 的最底部，显示最后一条消息
     }
 
     /**
@@ -149,6 +160,7 @@ public class MainActivity extends AppCompatActivity {
         keyboard_edit.setEnabled(Boolean.FALSE);
         keyboard_send.setEnabled(Boolean.FALSE);
         dialogueInfoAdapter.addMessage(new Message("", Message.TYPE_RECEIVED));
+        recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);
         RequestBody body = RequestBody.create(json.toString(), MediaType.parse("application/json; charset=utf-8"));
         Request request = new Request.Builder().url("http://121.37.233.219:5000/api/chat").post(body).build();
         client.newCall(request).enqueue(new Callback() {
@@ -159,9 +171,7 @@ public class MainActivity extends AppCompatActivity {
 
                 try (ResponseBody body = response.body()) {
                     InputStream inputStream = null;
-                    if (body != null) {
-                        inputStream = body.byteStream();
-                    }
+                    if (body != null) inputStream = body.byteStream();
 
                     // 使用BufferedReader按字符流读取
                     BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
@@ -184,6 +194,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 runOnUiThread(() -> {
+                    recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);
                     keyboard_edit.setEnabled(Boolean.TRUE);
                     keyboard_send.setEnabled(Boolean.TRUE);
                 });

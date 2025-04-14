@@ -1,5 +1,6 @@
 package com.fudan_conversation.android.utils;
 
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,24 +22,24 @@ import java.util.List;
  */
 public class DialogueInfoAdapter extends RecyclerView.Adapter<DialogueInfoAdapter.ViewHolder> {
     private static final String TAG = "DialogueInfoAdapter";
-    private static final long MIN_UPDATE_INTERVAL = 100; // 50ms
     private final List<Message> messages = new ArrayList<>(); // 存储对话信息列表
+    private final Context mContext;
 
-    private long lastUpdateTime = 0;
+    public DialogueInfoAdapter(RecyclerView recyclerView) {
+        mContext = recyclerView.getContext();
+    }
 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         // 通过 LayoutInflater 加载 item 布局
-        View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.dialogue_item, parent, false);
+        View itemView = LayoutInflater.from(mContext).inflate(R.layout.dialogue_item, parent, false);
         return new ViewHolder(itemView);
     }
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        // 获取当前位置的对话信息
-        Message message = messages.get(position);
-        holder.bind(message); // 消息绑定
+        holder.bind(messages.get(position)); // 消息绑定
     }
 
     @Override
@@ -53,17 +54,9 @@ public class DialogueInfoAdapter extends RecyclerView.Adapter<DialogueInfoAdapte
 
     public void updateLastMessage(String newContent) {
         Message lastMessage = messages.get(messages.size() - 1);
-        if (System.currentTimeMillis() - lastUpdateTime < MIN_UPDATE_INTERVAL) {
+        if (!messages.isEmpty() && lastMessage.getType() == Message.TYPE_RECEIVED) {
             lastMessage.setContent(lastMessage.getContent() + newContent);
-            return;
-        }
-        lastUpdateTime = System.currentTimeMillis();
-
-        if (!messages.isEmpty()) {
-            if (lastMessage.getType() == Message.TYPE_RECEIVED) {
-                lastMessage.setContent(lastMessage.getContent() + newContent);
-                notifyItemChanged(messages.size() - 1);
-            }
+            notifyItemChanged(messages.size() - 1);
         }
     }
 
@@ -76,7 +69,7 @@ public class DialogueInfoAdapter extends RecyclerView.Adapter<DialogueInfoAdapte
         ConstraintLayout dialogRight; // 回复对话框
         TextView dialogRightText; // 回复文本显示框
 
-        public ViewHolder(@NonNull View itemView) {
+        private ViewHolder(@NonNull View itemView) {
             super(itemView);
             dialogLeft = itemView.findViewById(R.id.dialog_left);
             dialogLeftText = itemView.findViewById(R.id.dialog_left_text);
