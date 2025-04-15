@@ -3,7 +3,6 @@ package com.fudan_conversation.android;
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -13,11 +12,13 @@ import android.widget.EditText;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.fudan_conversation.android.model.Message;
 import com.fudan_conversation.android.utils.DialogueInfoAdapter;
+import com.fudan_conversation.android.utils.KeyboardUtil;
 import com.fudan_conversation.android.utils.LogUtil;
 
 import org.json.JSONException;
@@ -48,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
 
     private Button keyboard_send; // 键盘输入发送按钮
     private EditText keyboard_edit; // 键盘输入框
+    private ConstraintLayout keyboard_edit_layout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,31 +59,27 @@ public class MainActivity extends AppCompatActivity {
         // 初始化
         init();
 
-        Handler handler = new Handler();
-        handler.postDelayed(() -> send("1"), 1000);
-        handler.postDelayed(() -> receive("2\n2"), 2000);
-        handler.postDelayed(() -> send("3\n3\n3"), 3000);
-        handler.postDelayed(() -> receive("4\n4\n4\n4"), 4000);
-        handler.postDelayed(() -> send("5\n5\n5\n5\n5"), 5000);
-        handler.postDelayed(() -> receive("6\n6\n6\n6\n6\n6"), 6000);
-        handler.postDelayed(() -> send("7\n7\n7\n7\n7\n7\n7"), 7000);
-        handler.postDelayed(() -> receive("8\n8\n8\n8\n8\n8\n8\n8"), 8000);
-
         // 捕捉 UI
         keyboard_edit = findViewById(R.id.input); // 键盘输入框
         keyboard_send = findViewById(R.id.send); // 键盘输入发送按钮
+        keyboard_edit_layout = findViewById(R.id.input_layout);
+
+        // 唤醒软键盘 + 软键盘弹出之后不会遮挡 RecyclerView 的内容
+        keyboard_edit_layout.setOnClickListener(v -> {
+            keyboard_edit.requestFocus(); // 获取焦点
+            KeyboardUtil.showSoftInput(keyboard_edit);
+            recyclerView.postDelayed(() -> recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1), 250);
+        });
 
         // 监听编辑文本时的动作（按下回车）
         keyboard_edit.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_SEND) {
-                sendKeyboard(keyboard_edit); // 发送键盘输入信息
-            }
+            LogUtil.debug(TAG, "onCreate", String.valueOf(actionId), Boolean.TRUE);
+            if (actionId == EditorInfo.IME_ACTION_SEND) sendKeyboard(keyboard_edit); // 发送键盘输入信息
+            else if (actionId == EditorInfo.IME_ACTION_DONE) sendKeyboard(keyboard_edit);
             return false;
         });
         // 点击 键盘输入发送按钮
-        keyboard_send.setOnClickListener(v -> {
-            sendKeyboard(keyboard_edit); // 发送键盘输入信息
-        });
+        keyboard_send.setOnClickListener(v -> sendKeyboard(keyboard_edit));
     }
 
     private void init() {
@@ -91,13 +89,11 @@ public class MainActivity extends AppCompatActivity {
         // 滚动对话框
         recyclerView = findViewById(R.id.dialog);
         recyclerView.setLayoutManager(linearLayoutManager); // 将 linearLayoutManager 设置为 recyclerView 的布局管理器
-        // 设置在软键盘弹出之后不会遮挡 RecyclerView 的内容
-//        recyclerView.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> recyclerView.postDelayed(() -> recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1), 100));
         // 创建 RecyclerViewAdapter 实例
         dialogueInfoAdapter = new DialogueInfoAdapter(recyclerView);
         recyclerView.setAdapter(dialogueInfoAdapter);  // 将 recyclerViewAdapter 设置为 recyclerView 的适配器
 
-        receive("复旦问答在线，博学笃志为您解答！");
+        receive("复旦问答在线，博学笃志为您解答！"); // 起始语
     }
 
     /**
@@ -107,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void receive(String content) {
         // 检查 content 是否为空
-        if (content == null || content.isEmpty()) {
+        if (content == null) {
             LogUtil.warning(TAG, "receive", "Message content null or empty string", Boolean.TRUE);
             return;
         }
@@ -143,9 +139,9 @@ public class MainActivity extends AppCompatActivity {
         // 发送消息
         String response = editText.getText().toString(); // 获取发送信息
         editText.setText(""); // 重置文本输入框的内容
-        send(response);
+        if (response.isEmpty()) return;
+        send(response); // 发送文本
 
-        // 获取回复
         // 构建JSON请求
         JSONObject json = new JSONObject();
         try {
@@ -156,11 +152,14 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // 发送请求
+        // 还原输入栏状态
+        KeyboardUtil.hideSoftInput(this);
+        keyboard_edit.clearFocus();
         keyboard_edit.setEnabled(Boolean.FALSE);
         keyboard_send.setEnabled(Boolean.FALSE);
-        dialogueInfoAdapter.addMessage(new Message("", Message.TYPE_RECEIVED));
-        recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);
+        receive("");
+
+        // 发送请求
         RequestBody body = RequestBody.create(json.toString(), MediaType.parse("application/json; charset=utf-8"));
         Request request = new Request.Builder().url("http://121.37.233.219:5000/api/chat").post(body).build();
         client.newCall(request).enqueue(new Callback() {
@@ -178,14 +177,17 @@ public class MainActivity extends AppCompatActivity {
                     StringBuilder contentBuffer = new StringBuilder();
 
                     String line;
-                    while (!(line = reader.readLine()).equals("data: [DONE]")) {
+                    while ((line = reader.readLine()) != null && !line.equals("data: [DONE]")) {
                         LogUtil.debug(TAG, "sendKeyboard", line, Boolean.TRUE);
                         if (line.startsWith("data: ")) {
                             String chunk = line.substring(6).trim();
                             contentBuffer.append(chunk);
 
                             // 实时更新 UI
-                            runOnUiThread(() -> dialogueInfoAdapter.updateLastMessage(chunk));
+                            runOnUiThread(() -> {
+                                dialogueInfoAdapter.updateLastMessage(chunk);
+                                recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);
+                            });
                         } else if (line.isEmpty() && contentBuffer.length() > 0) {
                             // 处理事件结束（空行）
                             contentBuffer.setLength(0); // 清空缓冲区

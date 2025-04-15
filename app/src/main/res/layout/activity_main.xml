@@ -12,8 +12,9 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/title_bar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="?attr/actionBarSize"
         android:background="@color/light_grey"
+        android:elevation="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -24,7 +25,7 @@
             android:layout_marginTop="10dp"
             android:layout_marginBottom="10dp"
             android:text="@string/name"
-            android:textSize="20sp"
+            android:textSize="26sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -33,12 +34,16 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 聊天展示框 -->
+    <!-- 聊天区域 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/dialog"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:clipToPadding="false"
         android:padding="10dp"
+        android:paddingVertical="8dp"
+        android:scrollbarThumbVertical="@drawable/custom_scrollbar"
+        android:scrollbarTrackVertical="@android:color/transparent"
         android:scrollbars="vertical"
         app:layout_constraintBottom_toTopOf="@id/input_bar"
         app:layout_constraintEnd_toEndOf="parent"
@@ -51,42 +56,62 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/gains_boro"
-        android:padding="5dp"
+        android:elevation="4dp"
+        android:paddingStart="5dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="5dp"
+        android:paddingBottom="10dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
         <Button
             android:id="@+id/switch_mod"
-            android:layout_width="10dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:contentDescription="@string/switch_description"
             android:text="@string/switch_text"
             android:textColor="@color/white"
             android:textSize="18sp"
-            android:visibility="invisible"
+            android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <EditText
-            android:id="@+id/input"
+        <FrameLayout
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="match_parent"
             android:layout_marginStart="10dp"
             android:layout_marginEnd="10dp"
-            android:autofillHints="NONE"
-            android:background="@color/white"
-            android:hint="@string/input_hint"
-            android:inputType="text"
-            android:paddingStart="15dp"
-            android:paddingEnd="0dp"
-            android:textColor="@color/black"
-            android:textSize="20sp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/send"
             app:layout_constraintStart_toEndOf="@id/switch_mod"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent">
+
+            <EditText
+                android:id="@+id/input"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:autofillHints="NONE"
+                android:background="@drawable/input_background"
+                android:hint="@string/input_hint"
+                android:inputType="text"
+                android:maxWidth="488dp"
+                android:paddingStart="15dp"
+                android:paddingEnd="0dp"
+                android:textColor="@color/black"
+                android:textSize="20sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/input_layout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </FrameLayout>
 
         <Button
             android:id="@+id/send"
