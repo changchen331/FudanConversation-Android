@@ -49,7 +49,6 @@ public class MainActivity extends AppCompatActivity {
 
     private Button keyboard_send; // 键盘输入发送按钮
     private EditText keyboard_edit; // 键盘输入框
-    private ConstraintLayout keyboard_edit_layout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
         // 捕捉 UI
         keyboard_edit = findViewById(R.id.input); // 键盘输入框
         keyboard_send = findViewById(R.id.send); // 键盘输入发送按钮
-        keyboard_edit_layout = findViewById(R.id.input_layout);
+        ConstraintLayout keyboard_edit_layout = findViewById(R.id.input_layout);
 
         // 唤醒软键盘 + 软键盘弹出之后不会遮挡 RecyclerView 的内容
         keyboard_edit_layout.setOnClickListener(v -> {
