@@ -1,5 +1,6 @@
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -9,6 +10,10 @@ android {
     namespace = "com.fudan_conversation.android"
     compileSdk = 35
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.fudan_conversation.android"
         minSdk = 24
@@ -17,6 +22,19 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // 读取 local.properties
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(localPropertiesFile.inputStream())
+        }
+        // 获取 username
+        val username = localProperties.getProperty("API_USERNAME") ?: ""
+        buildConfigField("String", "username", "\"$username\"") // 注入到 buildConfig
+        // 获取 password
+        val password = localProperties.getProperty("API_PASSWORD") ?: ""
+        buildConfigField("String", "password", "\"$password\"")
     }
 
     buildTypes {
@@ -35,9 +53,13 @@ android {
     android.applicationVariants.all {
         outputs.all {
             if (this is com.android.build.gradle.internal.api.ApkVariantOutputImpl) {
-                val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
-                val createTime = LocalDateTime.now().format(formatter)
-                this.outputFileName = "复旦问答_$createTime.apk"
+                val versionName = versionName
+                val versionCode = versionCode
+                val buildType = buildType.name
+                val createTime =
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
+                this.outputFileName =
+                    "复旦问答_v${versionName}.${versionCode}_${buildType}_${createTime}.apk"
             }
         }
     }

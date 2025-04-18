@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.Credentials;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -42,7 +43,11 @@ import okhttp3.ResponseBody;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
-    private final OkHttpClient client = new OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS).build();
+    private final OkHttpClient client = new OkHttpClient.Builder().addInterceptor(chain -> {
+        String auth = Credentials.basic(BuildConfig.username, BuildConfig.password);
+        Request request = chain.request().newBuilder().header("Authorization", auth).build();
+        return chain.proceed(request);
+    }).connectTimeout(10, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS).build();
 
     private RecyclerView recyclerView; // 对话框滚动视图
     private DialogueInfoAdapter dialogueInfoAdapter; // 对话框布局适配器
@@ -160,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
 
         // 发送请求
         RequestBody body = RequestBody.create(json.toString(), MediaType.parse("application/json; charset=utf-8"));
-        Request request = new Request.Builder().url("http://121.37.233.219:5000/api/chat").post(body).build();
+        Request request = new Request.Builder().url("http://121.37.233.219:80/api/chat").post(body).build();
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
@@ -183,10 +188,7 @@ public class MainActivity extends AppCompatActivity {
                             contentBuffer.append(chunk);
 
                             // 实时更新 UI
-                            runOnUiThread(() -> {
-                                dialogueInfoAdapter.updateLastMessage(chunk);
-                                recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);
-                            });
+                            runOnUiThread(() -> dialogueInfoAdapter.updateLastMessage(chunk));
                         } else if (line.isEmpty() && contentBuffer.length() > 0) {
                             // 处理事件结束（空行）
                             contentBuffer.setLength(0); // 清空缓冲区
