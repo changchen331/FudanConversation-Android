@@ -1,14 +1,17 @@
 package com.fudan_conversation.android;
 
+import android.Manifest;
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,9 +20,19 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.fudan_conversation.android.model.Message;
+import com.fudan_conversation.android.permission.PermissionListener;
+import com.fudan_conversation.android.permission.PermissionRequest;
 import com.fudan_conversation.android.utils.DialogueInfoAdapter;
+import com.fudan_conversation.android.utils.KeyboardStateMonitor;
 import com.fudan_conversation.android.utils.KeyboardUtil;
 import com.fudan_conversation.android.utils.LogUtil;
+import com.fudan_conversation.android.utils.ToastUtil;
+import com.fudan_conversation.android.utils.VibratorUtil;
+import com.fudan_conversation.android.utils.VoiceRecognitionUtil;
+import com.iflytek.cloud.ErrorCode;
+import com.iflytek.cloud.RecognizerListener;
+import com.iflytek.cloud.RecognizerResult;
+import com.iflytek.cloud.SpeechError;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -29,6 +42,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
@@ -43,17 +58,32 @@ import okhttp3.ResponseBody;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
+    private final PermissionRequest permissionRequest = new PermissionRequest(); // 权限申请
+    private final VoiceRecognitionUtil voiceRecognitionUtil = new VoiceRecognitionUtil(this); // 语音识别工具类
     private final OkHttpClient client = new OkHttpClient.Builder().addInterceptor(chain -> {
         String auth = Credentials.basic(BuildConfig.username, BuildConfig.password);
         Request request = chain.request().newBuilder().header("Authorization", auth).build();
         return chain.proceed(request);
     }).connectTimeout(10, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS).build();
 
+    private String asr_text = "";
+    private Boolean is_asr_cancel = Boolean.FALSE;
+    private Boolean is_asr_activated = Boolean.FALSE; // 语音识别是否激活
+    private Boolean is_switch_activated = Boolean.FALSE; // 输入切换是否激活
+
+    // 动态申请的权限
+    protected String[] requestPermissionArray = new String[]{android.Manifest.permission.RECORD_AUDIO, android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE};
+    protected List<String> deniedPermissionList = new ArrayList<>();// 声明一个集合，在后面的代码中用来存储用户拒绝授权的权限
+
+    // UI
     private RecyclerView recyclerView; // 对话框滚动视图
     private DialogueInfoAdapter dialogueInfoAdapter; // 对话框布局适配器
 
-    private Button keyboard_send; // 键盘输入发送按钮
+    private Button asr; // 语音输入
     private EditText keyboard_edit; // 键盘输入框
+    private ImageButton switch_mod; // 输入切换
+    private ImageButton switch_right; // 发送/取消按钮
+    private ConstraintLayout keyboard_edit_layout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,31 +91,125 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // 初始化
-        init();
+        init(); // 对话框
+        initPermissions(); // 权限
+        initVoiceRecognition(); // 语音识别
 
         // 捕捉 UI
+        asr = findViewById(R.id.asr); // 语音输入
         keyboard_edit = findViewById(R.id.input); // 键盘输入框
-        keyboard_send = findViewById(R.id.send); // 键盘输入发送按钮
-        ConstraintLayout keyboard_edit_layout = findViewById(R.id.input_layout);
+        switch_mod = findViewById(R.id.switch_mod); // 输入切换
+        switch_right = findViewById(R.id.switch_right); // 发送/取消按钮
+        keyboard_edit_layout = findViewById(R.id.input_layout);
 
-        // 唤醒软键盘 + 软键盘弹出之后不会遮挡 RecyclerView 的内容
-        keyboard_edit_layout.setOnClickListener(v -> {
-            keyboard_edit.requestFocus(); // 获取焦点
-            KeyboardUtil.showSoftInput(keyboard_edit);
-            recyclerView.postDelayed(() -> recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1), 250);
+        // 点击 语音输入
+        asr.setOnClickListener(v -> {
+            if (!is_asr_activated) {
+                // 语音识别激活
+                VibratorUtil.vibrate(this, 200); // 交互反馈
+                voiceRecognitionUtil.startListening(); // 开始识别
+                asr.setActivated(is_asr_activated = Boolean.TRUE);
+                asr.setText(R.string.asr_end);
+                switch_right.setVisibility(View.VISIBLE);
+                switch_mod.setVisibility(View.INVISIBLE);
+            } else {
+                // 语音识别休眠
+                VibratorUtil.vibrate(this, 200); // 交互反馈
+                voiceRecognitionUtil.stopListening(); // 结束识别
+                asr.setActivated(is_asr_activated = Boolean.FALSE);
+                asr.setText(R.string.asr_start);
+                switch_right.setVisibility(View.INVISIBLE);
+                switch_mod.setVisibility(View.VISIBLE);
+            }
         });
 
         // 监听编辑文本时的动作（按下回车）
         keyboard_edit.setOnEditorActionListener((v, actionId, event) -> {
             LogUtil.debug(TAG, "onCreate", String.valueOf(actionId), Boolean.TRUE);
-            if (actionId == EditorInfo.IME_ACTION_SEND) sendKeyboard(keyboard_edit); // 发送键盘输入信息
-            else if (actionId == EditorInfo.IME_ACTION_DONE) sendKeyboard(keyboard_edit);
+            if (actionId == EditorInfo.IME_ACTION_SEND)
+                chat(keyboard_edit.getText().toString()); // 发送键盘输入信息
+            else if (actionId == EditorInfo.IME_ACTION_DONE)
+                chat(keyboard_edit.getText().toString());
             return false;
         });
-        // 点击 键盘输入发送按钮
-        keyboard_send.setOnClickListener(v -> sendKeyboard(keyboard_edit));
+
+        // 点击 输入切换
+        switch_mod.setOnClickListener(v -> {
+            if (!is_switch_activated) {
+                // 输入切换激活（语音->键盘）
+                asr.setVisibility(View.INVISIBLE); // 隐藏语音输入
+                keyboard_edit.setVisibility(View.VISIBLE); // 显示输入框
+                switch_right.setActivated(Boolean.TRUE); // 发送按钮
+                switch_right.setVisibility(View.VISIBLE); // 显示发送按钮
+
+                keyboard_edit.requestFocus(); // 获取焦点
+                KeyboardUtil.showSoftInput(keyboard_edit); // 弹出软键盘
+
+                switch_mod.setScaleX(0.8f);
+                switch_mod.setScaleY(0.8f);
+                switch_mod.setActivated(is_switch_activated = Boolean.TRUE); // 输入切换激活
+            } else {
+                // 输入切换休眠（键盘->语音）
+                keyboard_edit.setVisibility(View.INVISIBLE); // 隐藏输入框
+                keyboard_edit.setText("");
+                asr.setVisibility(View.VISIBLE); // 显示语音输入
+                switch_right.setVisibility(View.INVISIBLE); // 隐藏发送按钮
+                switch_right.setActivated(Boolean.FALSE); // 取消按钮
+                switch_mod.setScaleX(1.0f);
+                switch_mod.setScaleY(1.0f);
+                switch_mod.setActivated(is_switch_activated = Boolean.FALSE); // 输入切换休眠
+            }
+        });
+
+        // 点击 发送/取消按钮
+        switch_right.setOnClickListener(v -> {
+            if (!is_switch_activated) {
+                // 语音（取消）
+                is_asr_cancel = Boolean.TRUE;
+                voiceRecognitionUtil.stopListening(); // 结束识别
+                asr.setActivated(is_asr_activated = Boolean.FALSE); // 语音识别休眠
+                asr.setText(R.string.asr_start);
+                switch_right.setVisibility(View.INVISIBLE); // 隐藏取消按钮
+                switch_mod.setVisibility(View.VISIBLE); // 显示输入切换
+            } else {
+                // 键盘（发送）
+                keyboard_edit.clearFocus(); // 清除焦点
+                KeyboardUtil.hideSoftInput(this); // 隐藏软键盘
+                chat(keyboard_edit.getText().toString()); // 键盘（发送）
+            }
+        });
+
+        // 唤醒软键盘 + 软键盘弹出之后不会遮挡 RecyclerView 的内容
+        keyboard_edit_layout.setOnClickListener(v -> {
+            if (is_switch_activated) {
+                keyboard_edit.requestFocus(); // 获取焦点
+                KeyboardUtil.showSoftInput(keyboard_edit); // 弹出软键盘
+                recyclerView.postDelayed(() -> recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1), 250);
+                keyboard_edit_layout.setVisibility(View.GONE);
+            }
+        });
+
+        // 监听软键盘状态变化
+        KeyboardStateMonitor keyboardStateMonitor = new KeyboardStateMonitor(findViewById(R.id.input_bar));
+        keyboardStateMonitor.addSoftKeyboardStateListener(new KeyboardStateMonitor.SoftKeyboardStateListener() {
+            @Override
+            public void onSoftKeyboardOpened(int keyboardHeightInPx) {
+                LogUtil.debug(TAG, "onSoftKeyboardOpened", String.valueOf(keyboardHeightInPx), Boolean.TRUE);
+                keyboard_edit_layout.setVisibility(View.GONE);
+            }
+
+            @Override
+            public void onSoftKeyboardClosed() {
+                // 软键盘关闭
+                keyboard_edit.clearFocus();
+                keyboard_edit_layout.setVisibility(View.VISIBLE);
+            }
+        });
     }
 
+    /**
+     * 初始化
+     */
     private void init() {
         // 创建 LinearLayoutManager 实例
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
@@ -98,6 +222,70 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setAdapter(dialogueInfoAdapter);  // 将 recyclerViewAdapter 设置为 recyclerView 的适配器
 
         receive("复旦问答在线，博学笃志为您解答！"); // 起始语
+    }
+
+    /**
+     * 初始化权限
+     */
+    private void initPermissions() {
+        // Android 6.0 以上动态申请权限
+        permissionRequest.requestRuntimePermission(this, requestPermissionArray, new PermissionListener() {
+            @Override
+            public void onGranted() {
+                LogUtil.info(TAG, "initPermissions", "所有权限已被授予", Boolean.TRUE);
+            }
+
+            // 用户勾选“不再提醒”拒绝权限后，关闭程序再打开程序只进入该方法
+            @Override
+            public void onDenied(List<String> deniedPermissions) {
+                deniedPermissionList = deniedPermissions;
+                for (String deniedPermission : deniedPermissions)
+                    LogUtil.warning(TAG, "initPermissions", "被拒绝权限：" + deniedPermission, Boolean.TRUE);
+            }
+        });
+    }
+
+    /**
+     * 初始化语音识别对象
+     */
+    private void initVoiceRecognition() {
+        voiceRecognitionUtil.init(new RecognizerListener() {
+            @Override
+            public void onVolumeChanged(int volume, byte[] data) {
+            }
+
+            @Override
+            public void onBeginOfSpeech() {
+            }
+
+            @Override
+            public void onEndOfSpeech() {
+            }
+
+            @Override
+            public void onResult(RecognizerResult results, boolean isLast) {
+                if (results != null) asr_text += results.getResultString().replace("。", "");
+                else {
+                    ToastUtil.showShort(MainActivity.this, "语音识别失败");
+                    LogUtil.warning(TAG, "initVoiceRecognition_onResult", "语音识别失败", Boolean.TRUE);
+                }
+                if (isLast) chat(asr_text);
+            }
+
+            @Override
+            public void onError(SpeechError error) {
+                LogUtil.warning(TAG, "initVoiceRecognition_onError", "您好像没有说话哦", Boolean.TRUE);
+            }
+
+            @Override
+            public void onEvent(int eventType, int arg1, int arg2, Bundle extras) {
+            }
+        }, code -> {
+            if (code == ErrorCode.SUCCESS)
+                LogUtil.info(TAG, "initVoiceRecognition", "语音识别初始化成功", Boolean.TRUE);
+            else
+                LogUtil.warning(TAG, "initVoiceRecognition", "语音识别初始化失败，错误码：" + code, Boolean.TRUE);
+        });
     }
 
     /**
@@ -135,33 +323,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 发送键盘输入信息
-     *
-     * @param editText 文本编辑框
+     * 与大模型进行交互
      */
-    private void sendKeyboard(EditText editText) {
-        // 发送消息
-        String response = editText.getText().toString(); // 获取发送信息
-        editText.setText(""); // 重置文本输入框的内容
-        if (response.isEmpty()) return;
-        send(response); // 发送文本
+    private void chat(String response) {
+        if (response == null || response.isEmpty()) return;
+
+        // 发送文本
+        if (is_switch_activated) keyboard_edit.setText("");
+        else asr_text = "";
+        if (is_asr_cancel) {
+            is_asr_cancel = Boolean.FALSE;
+            return;
+        }
+        send(response);
+
+        // 锁定输入栏状态
+        receive("");
+        asr.setEnabled(Boolean.FALSE);
+        switch_right.setEnabled(Boolean.FALSE);
 
         // 构建JSON请求
         JSONObject json = new JSONObject();
         try {
             json.put("query", response);
-            LogUtil.debug(TAG, "sendKeyboard", json.toString(), Boolean.TRUE);
+            LogUtil.debug(TAG, "chat", json.toString(), Boolean.TRUE);
         } catch (JSONException e) {
-            LogUtil.error(TAG, "sendKeyboard", "创建 query 失败", e);
+            LogUtil.error(TAG, "chat", "创建 query 失败", e);
             return;
         }
-
-        // 还原输入栏状态
-        KeyboardUtil.hideSoftInput(this);
-        keyboard_edit.clearFocus();
-        keyboard_edit.setEnabled(Boolean.FALSE);
-        keyboard_send.setEnabled(Boolean.FALSE);
-        receive("");
 
         // 发送请求
         RequestBody body = RequestBody.create(json.toString(), MediaType.parse("application/json; charset=utf-8"));
@@ -170,7 +359,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                 if (!response.isSuccessful()) return;
-                LogUtil.debug(TAG, "sendKeyboard", "请求成功！", Boolean.TRUE);
+                LogUtil.debug(TAG, "chat", "请求成功！", Boolean.TRUE);
 
                 try (ResponseBody body = response.body()) {
                     InputStream inputStream = null;
@@ -182,11 +371,10 @@ public class MainActivity extends AppCompatActivity {
 
                     String line;
                     while ((line = reader.readLine()) != null && !line.equals("data: [DONE]")) {
-                        LogUtil.debug(TAG, "sendKeyboard", line, Boolean.TRUE);
+                        LogUtil.debug(TAG, "chat", line, Boolean.TRUE);
                         if (line.startsWith("data: ")) {
                             String chunk = line.substring(6).trim();
                             contentBuffer.append(chunk);
-
                             // 实时更新 UI
                             runOnUiThread(() -> dialogueInfoAdapter.updateLastMessage(chunk));
                         } else if (line.isEmpty() && contentBuffer.length() > 0) {
@@ -198,8 +386,8 @@ public class MainActivity extends AppCompatActivity {
 
                 runOnUiThread(() -> {
                     recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);
-                    keyboard_edit.setEnabled(Boolean.TRUE);
-                    keyboard_send.setEnabled(Boolean.TRUE);
+                    switch_right.setEnabled(Boolean.TRUE);
+                    asr.setEnabled(Boolean.TRUE);
                 });
             }
 
@@ -208,8 +396,8 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     dialogueInfoAdapter.updateLastMessage("网络请求失败，请重试");
                     recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);
-                    keyboard_edit.setEnabled(Boolean.TRUE);
-                    keyboard_send.setEnabled(Boolean.TRUE);
+                    switch_right.setEnabled(Boolean.TRUE);
+                    asr.setEnabled(Boolean.TRUE);
                 });
             }
         });
@@ -233,9 +421,11 @@ public class MainActivity extends AppCompatActivity {
                 // 如果触摸位置不在 EditText 的可视范围内
                 if (!rect.contains((int) ev.getRawX(), (int) ev.getRawY())) {
                     // 收起软键盘
+                    keyboard_edit.clearFocus(); // 清除焦点
                     InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                     if (inputMethodManager != null)
                         inputMethodManager.hideSoftInputFromWindow(currentFocusedView.getWindowToken(), 0);
+                    keyboard_edit_layout.setVisibility(View.VISIBLE);
                 }
             }
         }

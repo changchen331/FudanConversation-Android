@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 输入切换按钮-->
+    <!-- 当按钮未被激活时 -->
+    <item android:drawable="@drawable/switch_mod_kb" android:state_activated="false" />
+
+    <!-- 当按钮被激活时 -->
+    <item android:drawable="@drawable/switch_mod_asr" android:state_activated="true" />
+
+</selector>

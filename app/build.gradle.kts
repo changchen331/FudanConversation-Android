@@ -19,7 +19,7 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -35,6 +35,9 @@ android {
         // 获取 password
         val password = localProperties.getProperty("API_PASSWORD") ?: ""
         buildConfigField("String", "password", "\"$password\"")
+        // 获取 appId
+        val appId = localProperties.getProperty("XF_APPID") ?: ""
+        buildConfigField("String", "appId", "\"$appId\"")
     }
 
     buildTypes {
@@ -48,6 +51,13 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    sourceSets {
+        getByName("main") {
+            jni {
+                srcDirs("src\\main\\jni", "src\\main\\jniLibs")
+            }
+        }
     }
 
     android.applicationVariants.all {
@@ -70,6 +80,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
+    implementation(files("libs/Msc.jar"))
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

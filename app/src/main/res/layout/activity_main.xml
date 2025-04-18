@@ -25,6 +25,7 @@
             android:layout_marginTop="10dp"
             android:layout_marginBottom="10dp"
             android:text="@string/name"
+            android:textColor="@color/black"
             android:textSize="26sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -65,15 +66,18 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <Button
+        <ImageButton
             android:id="@+id/switch_mod"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:background="@android:color/transparent"
             android:contentDescription="@string/switch_description"
-            android:text="@string/switch_text"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:visibility="gone"
+            android:padding="5dp"
+            android:scaleType="fitCenter"
+            android:scaleX="1.0"
+            android:scaleY="1.0"
+            android:src="@drawable/switch_mod"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -82,45 +86,84 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_marginStart="10dp"
-            android:layout_marginEnd="10dp"
+            android:layout_marginEnd="11dp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/send"
+            app:layout_constraintEnd_toStartOf="@id/switch_right"
             app:layout_constraintStart_toEndOf="@id/switch_mod"
             app:layout_constraintTop_toTopOf="parent">
 
-            <EditText
-                android:id="@+id/input"
+            <!--     文字输入       -->
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:autofillHints="NONE"
-                android:background="@drawable/input_background"
-                android:hint="@string/input_hint"
-                android:inputType="text"
-                android:maxWidth="488dp"
-                android:paddingStart="15dp"
-                android:paddingEnd="0dp"
-                android:textColor="@color/black"
-                android:textSize="20sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                android:layout_height="match_parent">
+
+                <EditText
+                    android:id="@+id/input"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:autofillHints="NONE"
+                    android:background="@drawable/input_background"
+                    android:hint="@string/input_hint"
+                    android:imeOptions="actionSend"
+                    android:inputType="text"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="0dp"
+                    android:textColor="@color/black"
+                    android:textIsSelectable="true"
+                    android:textSize="20sp"
+                    android:visibility="invisible"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_max="488dp" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/input_layout"
                 android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!--    语音输入      -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
                 android:layout_height="match_parent">
 
+                <Button
+                    android:id="@+id/asr"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/asr"
+                    android:text="@string/asr_start"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_max="320dp" />
+
             </androidx.constraintlayout.widget.ConstraintLayout>
+
         </FrameLayout>
 
-        <Button
-            android:id="@+id/send"
+        <ImageButton
+            android:id="@+id/switch_right"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="5dp"
+            android:adjustViewBounds="true"
+            android:background="@android:color/transparent"
             android:contentDescription="@string/send_description"
-            android:text="@string/send_text"
-            android:textColor="@color/white"
-            android:textSize="18sp"
+            android:padding="3dp"
+            android:scaleType="fitCenter"
+            android:scaleX="1.1"
+            android:scaleY="1.1"
+            android:src="@drawable/switch_right"
+            android:visibility="invisible"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
