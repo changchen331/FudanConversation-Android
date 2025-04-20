@@ -27,7 +27,6 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintWidth_default="wrap"
             tools:text="这里是接收到的信息~" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
@@ -53,7 +52,6 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintWidth_default="wrap"
             tools:text="这里是发送的信息~" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

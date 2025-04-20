@@ -44,22 +44,31 @@ public class VoiceRecognitionUtil {
         // 获取系统默认的语言和地区设置
         Locale locale = Locale.getDefault();
         String language = locale.getLanguage() + "-" + locale.getCountry();
-        LogUtil.info(TAG, "initVoiceRecognizer", "系统默认language:" + language, Boolean.TRUE);
+        LogUtil.info(TAG, "initVoiceRecognizer", "系统默认语言:" + language, Boolean.TRUE);
 
         // 创建语音识别对象
         speechRecognizer = SpeechRecognizer.createRecognizer(context, initListener);
         if (speechRecognizer != null) {
-            speechRecognizer.setParameter(SpeechConstant.RESULT_TYPE, "plain"); // 设置识别结果的类型为纯文本
+            // 设置语音识别语言
+//            if ("zh-CN".equalsIgnoreCase(language))
+//                speechRecognizer.setParameter(SpeechConstant.LANGUAGE, "zh_cn");
+//            else speechRecognizer.setParameter(SpeechConstant.LANGUAGE, "en_us");
+            speechRecognizer.setParameter(SpeechConstant.LANGUAGE, "zh_cn"); // 直接设置语音输入语言为中文
+            speechRecognizer.setParameter(SpeechConstant.ACCENT, "mandarin"); // 设置结果返回语言
 
-            // 用户多长时间未开始说话则当做超时处理（取值范围{1000～10000}）
+            // 用户多长时间未开始说话则当做超时处理（取值范围{1000～10000}，默认值5000ms）
             speechRecognizer.setParameter(SpeechConstant.VAD_BOS, "10000"); // 设置语音开始检测的静音时长（毫秒）
-            // 用户停止说话多长时间内即认为不再输入（取值范围{1000～10000}）
+            // 用户停止说话多长时间内即认为不再输入（取值范围{1000～10000}，默认值5000ms）
             speechRecognizer.setParameter(SpeechConstant.VAD_EOS, "10000"); // 设置语音结束检测的静音时长（毫秒）
 
-            // 根据系统语言设置语音识别语言
-            if ("zh-CN".equalsIgnoreCase(language))
-                speechRecognizer.setParameter(SpeechConstant.LANGUAGE, "zh_cn");
-            else speechRecognizer.setParameter(SpeechConstant.LANGUAGE, "en_us");
+            // 结果类型包括：xml, json, plain。xml和json即对应的结构化文本结构，plain即自然语言的文本
+            speechRecognizer.setParameter(SpeechConstant.RESULT_TYPE, "plain"); // 设置识别结果的类型为纯文本
+
+            // 通过设置此参数可偏向输出数字结果格式（0：倾向于汉字，1：倾向于数字）
+            speechRecognizer.setParameter("nunum", "1");
+
+            // （仅中文支持）标点符号添加（1：开启（默认值）0：关闭）
+            speechRecognizer.setParameter(SpeechConstant.ASR_PTT, "1");
 
             LogUtil.info(TAG, "initVoiceRecognizer", "语音识别对象完成初始化", Boolean.TRUE);
         } else LogUtil.info(TAG, "initVoiceRecognizer", "语音识别对象为空", Boolean.TRUE);

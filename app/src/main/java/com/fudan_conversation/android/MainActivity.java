@@ -26,7 +26,6 @@ import com.fudan_conversation.android.utils.KeyboardStateMonitor;
 import com.fudan_conversation.android.utils.KeyboardUtil;
 import com.fudan_conversation.android.utils.LogUtil;
 import com.fudan_conversation.android.utils.ToastUtil;
-import com.fudan_conversation.android.utils.VibratorUtil;
 import com.fudan_conversation.android.utils.VoiceRecognitionUtil;
 import com.iflytek.cloud.ErrorCode;
 import com.iflytek.cloud.RecognizerListener;
@@ -76,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
 
     // UI
     private RecyclerView recyclerView; // 对话框滚动视图
-    private DialogueInfoAdapter dialogueInfoAdapter; // 对话框布局适配器
+    private DialogueInfoAdapter dialogueAdapter; // 对话框布局适配器
 
     private Button asr; // 语音输入
     private EditText keyboard_edit; // 键盘输入框
@@ -105,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
         asr.setOnClickListener(v -> {
             if (!is_asr_activated) {
                 // 语音识别激活
-                VibratorUtil.vibrate(this, 200); // 交互反馈
+//                VibratorUtil.vibrate(this, 200); // 交互反馈
                 voiceRecognitionUtil.startListening(); // 开始识别
                 asr.setActivated(is_asr_activated = Boolean.TRUE);
                 asr.setText(R.string.asr_end);
@@ -113,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
                 switch_mod.setVisibility(View.INVISIBLE);
             } else {
                 // 语音识别休眠
-                VibratorUtil.vibrate(this, 200); // 交互反馈
+//                VibratorUtil.vibrate(this, 200); // 交互反馈
                 voiceRecognitionUtil.stopListening(); // 结束识别
                 asr.setActivated(is_asr_activated = Boolean.FALSE);
                 asr.setText(R.string.asr_start);
@@ -183,7 +182,7 @@ public class MainActivity extends AppCompatActivity {
             if (is_switch_activated) {
                 keyboard_edit.requestFocus(); // 获取焦点
                 KeyboardUtil.showSoftInput(keyboard_edit); // 弹出软键盘
-                recyclerView.postDelayed(() -> recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1), 250);
+                recyclerView.postDelayed(() -> recyclerView.smoothScrollToPosition(dialogueAdapter.getItemCount() - 1), 250);
                 keyboard_edit_layout.setVisibility(View.GONE);
             }
         });
@@ -217,8 +216,8 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.dialog);
         recyclerView.setLayoutManager(linearLayoutManager); // 将 linearLayoutManager 设置为 recyclerView 的布局管理器
         // 创建 RecyclerViewAdapter 实例
-        dialogueInfoAdapter = new DialogueInfoAdapter(recyclerView);
-        recyclerView.setAdapter(dialogueInfoAdapter);  // 将 recyclerViewAdapter 设置为 recyclerView 的适配器
+        dialogueAdapter = new DialogueInfoAdapter(recyclerView);
+        recyclerView.setAdapter(dialogueAdapter);  // 将 recyclerViewAdapter 设置为 recyclerView 的适配器
 
         receive("复旦问答在线，博学笃志为您解答！"); // 起始语
     }
@@ -300,8 +299,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // 接收消息
-        dialogueInfoAdapter.addMessage(new Message(content, Message.TYPE_RECEIVED)); // 将新消息添加到消息列表
-        recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1); // 滚动到 RecyclerView 的最底部，显示最后一条消息
+        dialogueAdapter.addMessage(new Message(content, Message.TYPE_RECEIVED)); // 将新消息添加到消息列表
+        recyclerView.smoothScrollToPosition(dialogueAdapter.getItemCount() - 1); // 滚动到 RecyclerView 的最底部，显示最后一条消息
     }
 
     /**
@@ -317,15 +316,15 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // 发送消息
-        dialogueInfoAdapter.addMessage(new Message(content, Message.TYPE_SENT)); // 将新消息添加到消息列表
-        recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);// 滚动到 RecyclerView 的最底部，显示最后一条消息
+        dialogueAdapter.addMessage(new Message(content, Message.TYPE_SENT)); // 将新消息添加到消息列表
+        recyclerView.smoothScrollToPosition(dialogueAdapter.getItemCount() - 1);// 滚动到 RecyclerView 的最底部，显示最后一条消息
     }
 
     /**
      * 与大模型进行交互
      */
-    private void chat(String response) {
-        if (response == null || response.isEmpty()) return;
+    private void chat(String userInput) {
+        if (userInput == null || userInput.isEmpty()) return;
 
         // 发送文本
         if (is_switch_activated) keyboard_edit.setText("");
@@ -334,17 +333,29 @@ public class MainActivity extends AppCompatActivity {
             is_asr_cancel = Boolean.FALSE;
             return;
         }
-        send(response);
+        send(userInput);
 
         // 锁定输入栏状态
         receive("");
         asr.setEnabled(Boolean.FALSE);
         switch_right.setEnabled(Boolean.FALSE);
 
+        // 加入上下文信息
+        StringBuilder query = new StringBuilder("以下是我和AI的最近几轮对话，请参考它们继续回答我的问题。\n");
+        int count = dialogueAdapter.getItemCount();
+        for (int index = count - 6; index < count - 2; index++) {
+            if (index < 0) continue;
+            Message message = dialogueAdapter.getMessage(index);
+            if (message.getType() == Message.TYPE_RECEIVED)
+                query.append("AI:").append(message.getContent()).append("\n");
+            else query.append("用户:").append(message.getContent()).append("\n");
+        }
+        query.append("这是我的新问题:").append(userInput);
+
         // 构建JSON请求
         JSONObject json = new JSONObject();
         try {
-            json.put("query", response);
+            json.put("query", query.toString());
             LogUtil.debug(TAG, "chat", json.toString(), Boolean.TRUE);
         } catch (JSONException e) {
             LogUtil.error(TAG, "chat", "创建 query 失败", e);
@@ -357,34 +368,39 @@ public class MainActivity extends AppCompatActivity {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                if (!response.isSuccessful()) return;
-                LogUtil.debug(TAG, "chat", "请求成功！", Boolean.TRUE);
+                if (response.isSuccessful()) {
+                    try (ResponseBody body = response.body()) {
+                        InputStream inputStream = null;
+                        if (body != null) inputStream = body.byteStream();
 
-                try (ResponseBody body = response.body()) {
-                    InputStream inputStream = null;
-                    if (body != null) inputStream = body.byteStream();
+                        // 使用BufferedReader按字符流读取
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+                        StringBuilder contentBuffer = new StringBuilder();
 
-                    // 使用BufferedReader按字符流读取
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
-                    StringBuilder contentBuffer = new StringBuilder();
-
-                    String line;
-                    while ((line = reader.readLine()) != null && !line.equals("data: [DONE]")) {
-                        LogUtil.debug(TAG, "chat", line, Boolean.TRUE);
-                        if (line.startsWith("data: ")) {
-                            String chunk = line.substring(6).trim();
-                            contentBuffer.append(chunk);
-                            // 实时更新 UI
-                            runOnUiThread(() -> dialogueInfoAdapter.updateLastMessage(chunk));
-                        } else if (line.isEmpty() && contentBuffer.length() > 0) {
-                            // 处理事件结束（空行）
-                            contentBuffer.setLength(0); // 清空缓冲区
+                        String line;
+                        while ((line = reader.readLine()) != null && !line.equals("data: [DONE]")) {
+                            LogUtil.debug(TAG, "chat", line, Boolean.TRUE);
+                            if (line.startsWith("data: ")) {
+                                String chunk = line.substring(6).trim();
+                                contentBuffer.append(chunk);
+                                // 实时更新 UI
+                                runOnUiThread(() -> dialogueAdapter.updateLastMessage(chunk));
+                            } else if (line.isEmpty() && contentBuffer.length() > 0) {
+                                // 处理事件结束（空行）
+                                contentBuffer.setLength(0); // 清空缓冲区
+                            }
                         }
                     }
                 }
 
                 runOnUiThread(() -> {
-                    recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);
+                    if (!response.isSuccessful())
+                        // 服务器返回 404 等
+                        dialogueAdapter.updateLastMessage("服务器正忙，请稍后再试");
+                    else if (dialogueAdapter.getMessage(dialogueAdapter.getItemCount() - 1).getContent().isEmpty())
+                        // 服务器返回内容为空
+                        dialogueAdapter.updateLastMessage("这个问题我不太清楚哦，要不要换个问题试试？");
+                    recyclerView.smoothScrollToPosition(dialogueAdapter.getItemCount() - 1);
                     switch_right.setEnabled(Boolean.TRUE);
                     asr.setEnabled(Boolean.TRUE);
                 });
@@ -393,8 +409,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 runOnUiThread(() -> {
-                    dialogueInfoAdapter.updateLastMessage("网络请求失败，请重试");
-                    recyclerView.smoothScrollToPosition(dialogueInfoAdapter.getItemCount() - 1);
+                    dialogueAdapter.updateLastMessage("网络请求失败，请稍后再试");
+                    recyclerView.smoothScrollToPosition(dialogueAdapter.getItemCount() - 1);
                     switch_right.setEnabled(Boolean.TRUE);
                     asr.setEnabled(Boolean.TRUE);
                 });

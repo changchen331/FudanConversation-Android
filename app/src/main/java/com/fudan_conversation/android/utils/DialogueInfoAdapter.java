@@ -47,17 +47,24 @@ public class DialogueInfoAdapter extends RecyclerView.Adapter<DialogueInfoAdapte
         return messages.size();
     }
 
+    // 添加新信息
     public void addMessage(Message message) {
         messages.add(message);
         notifyItemInserted(messages.size() - 1);
     }
 
+    // 更新最新信息
     public void updateLastMessage(String newContent) {
         Message lastMessage = messages.get(messages.size() - 1);
         if (!messages.isEmpty() && lastMessage.getType() == Message.TYPE_RECEIVED) {
             lastMessage.setContent(lastMessage.getContent() + newContent);
             notifyItemChanged(messages.size() - 1);
         }
+    }
+
+    // 获取指定信息
+    public Message getMessage(int index) {
+        return messages.get(index);
     }
 
     /**
