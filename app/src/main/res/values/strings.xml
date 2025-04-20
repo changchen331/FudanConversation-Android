@@ -7,6 +7,6 @@
     <string name="input_hint">请输入文本</string>
     <string name="switch_text">切换</string>
     <string name="send_text">发送</string>
-    <string name="asr_start">点击开始说话</string>
-    <string name="asr_end">点击结束说话</string>
+    <string name="asr_start">长按说话</string>
+    <string name="asr_end">松手发送</string>
 </resources>

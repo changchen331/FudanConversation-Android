@@ -1,6 +1,7 @@
 package com.fudan_conversation.android;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.Bundle;
@@ -83,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton switch_right; // 发送/取消按钮
     private ConstraintLayout keyboard_edit_layout;
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -101,6 +103,23 @@ public class MainActivity extends AppCompatActivity {
         keyboard_edit_layout = findViewById(R.id.input_layout);
 
         // 点击 语音输入
+        asr.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN: // 语音识别激活
+//                VibratorUtil.vibrate(this, 200); // 交互反馈
+                    voiceRecognitionUtil.startListening(); // 开始识别
+                    asr.setActivated(is_asr_activated = Boolean.TRUE);
+                    asr.setText(R.string.asr_end);
+//                    switch_right.setVisibility(View.VISIBLE);
+                    switch_mod.setVisibility(View.INVISIBLE);
+                    return true;
+                case MotionEvent.ACTION_UP: // 语音识别休眠
+                    v.performClick();
+                    return true;
+                default:
+                    return false;
+            }
+        });
         asr.setOnClickListener(v -> {
             if (!is_asr_activated) {
                 // 语音识别激活
