@@ -110,8 +110,7 @@ public class MainActivity extends AppCompatActivity {
                     voiceRecognitionUtil.startListening(); // 开始识别
                     asr.setActivated(is_asr_activated = Boolean.TRUE);
                     asr.setText(R.string.asr_end);
-//                    switch_right.setVisibility(View.VISIBLE);
-                    switch_mod.setVisibility(View.INVISIBLE);
+                    switch_mod.setEnabled(Boolean.FALSE);
                     return true;
                 case MotionEvent.ACTION_UP: // 语音识别休眠
                     v.performClick();
@@ -127,16 +126,17 @@ public class MainActivity extends AppCompatActivity {
                 voiceRecognitionUtil.startListening(); // 开始识别
                 asr.setActivated(is_asr_activated = Boolean.TRUE);
                 asr.setText(R.string.asr_end);
-                switch_right.setVisibility(View.VISIBLE);
-                switch_mod.setVisibility(View.INVISIBLE);
+//                switch_right.setVisibility(View.VISIBLE);
+//                switch_mod.setVisibility(View.INVISIBLE);
             } else {
                 // 语音识别休眠
 //                VibratorUtil.vibrate(this, 200); // 交互反馈
                 voiceRecognitionUtil.stopListening(); // 结束识别
                 asr.setActivated(is_asr_activated = Boolean.FALSE);
                 asr.setText(R.string.asr_start);
-                switch_right.setVisibility(View.INVISIBLE);
-                switch_mod.setVisibility(View.VISIBLE);
+//                switch_right.setVisibility(View.INVISIBLE);
+//                switch_mod.setVisibility(View.VISIBLE);
+                switch_mod.setEnabled(Boolean.TRUE);
             }
         });
 
