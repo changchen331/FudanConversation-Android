@@ -58,10 +58,7 @@
         android:layout_height="wrap_content"
         android:background="@color/gains_boro"
         android:elevation="4dp"
-        android:paddingStart="5dp"
-        android:paddingTop="10dp"
-        android:paddingEnd="5dp"
-        android:paddingBottom="10dp"
+        android:padding="5dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -73,7 +70,7 @@
             android:adjustViewBounds="true"
             android:background="@android:color/transparent"
             android:contentDescription="@string/switch_description"
-            android:padding="5dp"
+            android:padding="3dp"
             android:scaleType="fitCenter"
             android:scaleX="1.0"
             android:scaleY="1.0"
@@ -123,7 +120,8 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/input_layout"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent"
+                android:visibility="gone" />
 
             <!--    语音输入      -->
             <androidx.constraintlayout.widget.ConstraintLayout

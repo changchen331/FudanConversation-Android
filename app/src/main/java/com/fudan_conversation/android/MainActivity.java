@@ -142,9 +142,8 @@ public class MainActivity extends AppCompatActivity {
 
         // 监听编辑文本时的动作（按下回车）
         keyboard_edit.setOnEditorActionListener((v, actionId, event) -> {
-            LogUtil.debug(TAG, "onCreate", String.valueOf(actionId), Boolean.TRUE);
-            if (actionId == EditorInfo.IME_ACTION_SEND)
-                chat(keyboard_edit.getText().toString()); // 发送键盘输入信息
+            // 发送键盘输入信息
+            if (actionId == EditorInfo.IME_ACTION_SEND) chat(keyboard_edit.getText().toString());
             else if (actionId == EditorInfo.IME_ACTION_DONE)
                 chat(keyboard_edit.getText().toString());
             return false;
@@ -197,14 +196,14 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // 唤醒软键盘 + 软键盘弹出之后不会遮挡 RecyclerView 的内容
-        keyboard_edit_layout.setOnClickListener(v -> {
-            if (is_switch_activated) {
-                keyboard_edit.requestFocus(); // 获取焦点
-                KeyboardUtil.showSoftInput(keyboard_edit); // 弹出软键盘
-                recyclerView.postDelayed(() -> recyclerView.smoothScrollToPosition(dialogueAdapter.getItemCount() - 1), 250);
-                keyboard_edit_layout.setVisibility(View.GONE);
-            }
-        });
+//        keyboard_edit_layout.setOnClickListener(v -> {
+//            if (is_switch_activated) {
+//                keyboard_edit.requestFocus(); // 获取焦点
+//                KeyboardUtil.showSoftInput(keyboard_edit); // 弹出软键盘
+//                recyclerView.postDelayed(() -> recyclerView.smoothScrollToPosition(dialogueAdapter.getItemCount() - 1), 250);
+//                keyboard_edit_layout.setVisibility(View.GONE);
+//            }
+//        });
 
         // 监听软键盘状态变化
         KeyboardStateMonitor keyboardStateMonitor = new KeyboardStateMonitor(findViewById(R.id.input_bar));
@@ -212,14 +211,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onSoftKeyboardOpened(int keyboardHeightInPx) {
                 LogUtil.debug(TAG, "onSoftKeyboardOpened", String.valueOf(keyboardHeightInPx), Boolean.TRUE);
-                keyboard_edit_layout.setVisibility(View.GONE);
+                recyclerView.postDelayed(() -> recyclerView.smoothScrollToPosition(dialogueAdapter.getItemCount() - 1), 250);
+//                keyboard_edit_layout.setVisibility(View.GONE);
             }
 
             @Override
             public void onSoftKeyboardClosed() {
                 // 软键盘关闭
                 keyboard_edit.clearFocus();
-                keyboard_edit_layout.setVisibility(View.VISIBLE);
+//                keyboard_edit_layout.setVisibility(View.VISIBLE);
             }
         });
     }
@@ -369,7 +369,7 @@ public class MainActivity extends AppCompatActivity {
                 query.append("AI:").append(message.getContent()).append("\n");
             else query.append("用户:").append(message.getContent()).append("\n");
         }
-        query.append("这是我的新问题:").append(userInput);
+        query.append("这是我的新问题：").append(userInput);
 
         // 构建JSON请求
         JSONObject json = new JSONObject();
@@ -459,7 +459,7 @@ public class MainActivity extends AppCompatActivity {
                     InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                     if (inputMethodManager != null)
                         inputMethodManager.hideSoftInputFromWindow(currentFocusedView.getWindowToken(), 0);
-                    keyboard_edit_layout.setVisibility(View.VISIBLE);
+//                    keyboard_edit_layout.setVisibility(View.VISIBLE);
                 }
             }
         }
